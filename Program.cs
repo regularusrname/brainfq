@@ -15,32 +15,41 @@ if (!FileExtensionRegex().IsMatch(fileArg))
     Console.WriteLine(IMPROPER_USAGE_MESSAGE);
 }
 
+//TODO: Solve problem with .Span (it just copied memory when is callig):
 Memory<byte> brainfqBuffer = new byte[BUFFER_LENGTH];
+
 try
 {
-    // Console.WriteLine(fileArg);
-    StreamReader fileContentReader = new(fileArg);
-    string fileContent = await fileContentReader.ReadToEndAsync();
+    string workContent;
+    using (StreamReader fileContentReader = new(fileArg))
+    {
+        string fileContent = await fileContentReader.ReadToEndAsync();
+        workContent = await BrainfqLexer.LexAnalyzeAsync(fileContent);
+    }
 
-#if DEBUG
-    // Console.WriteLine($"{fileArg}:\n{fileContent}");
-#endif
+    #if DEBUG
+        Console.WriteLine(workContent);
+        //Console.WriteLine($"{fileArg}:\n{fileContent}");
+    #endif
+
     ushort dataPointer = 0;
     short brackets = 0;
-    for (ushort index = 0; index < fileContent.Length; ++index)
+    for (ushort index = 0; index < workContent.Length; ++index)
     {
-        switch (fileContent[index])
+        switch (workContent[index])
         {
             case '>':
                 if (dataPointer >= BUFFER_LENGTH)
                     dataPointer = 0;
-                ++dataPointer;
+                else
+                    ++dataPointer;
                 break;
 
             case '<':
                 if (dataPointer <= 0)
                     dataPointer = BUFFER_LENGTH - 1;
-                --dataPointer;
+                else
+                    --dataPointer;
                 break;
 
             case '+':
@@ -58,31 +67,38 @@ try
             case ',':
                 var input = Console.Read();
                 if (input == -1)
+                {
                     Console.WriteLine("\nAn error occurred while reading the input value");
+                    break;
+                }
                 brainfqBuffer.Span[dataPointer] = (byte)input;
                 break;
 
             case '[':
                 brackets++;
-                // if current byte at the data pointer is NOT zero, 
+                // if current byte at the data pointer is NOT zero,
                 // then move the instruction pointer forward to the next command
                 if (brainfqBuffer.Span[dataPointer] != 0)
                 {
                     continue;
                 }
 
-                //If the byte at the data pointer IS ZERO, 
+                //If the byte at the data pointer IS ZERO,
                 //then jump it forward to the command after the matching ] command
-                while(brackets > 0)
+                while (brackets > 0)
                 {
                     ++index;
-                    switch(fileContent[index])
+                    switch (workContent[index])
                     {
-                        case '[': ++brackets; break;
-                        case ']': --brackets; break;
+                        case '[':
+                            ++brackets;
+                            break;
+                        case ']':
+                            --brackets;
+                            break;
                     }
                 }
-            break;
+                break;
 
             case ']':
                 --brackets;
@@ -95,16 +111,20 @@ try
 
                 // If the byte at the data pointer IS NONzero,
                 // then jump it back to the command after the matching [ command.
-                while(brackets != 1)
+                while (brackets != 1)
                 {
                     --index;
-                    switch(fileContent[index])
+                    switch (workContent[index])
                     {
-                        case ']': --brackets; break;
-                        case '[': ++brackets; break;
+                        case ']':
+                            --brackets;
+                            break;
+                        case '[':
+                            ++brackets;
+                            break;
                     }
                 }
-            break;
+                break;
         }
     }
 
@@ -114,14 +134,14 @@ catch (Exception e)
 {
     Console.WriteLine("An error occurred during execution.");
 
-#if DEBUG
-    Console.WriteLine(e.Message);
-#endif
+    #if DEBUG
+        Console.WriteLine(e.Message);
+    #endif
 
     return 1;
 }
 
-partial class Program
+internal partial class Program
 {
     [GeneratedRegex("\\.(b|bf)$")]
     private static partial Regex FileExtensionRegex();
