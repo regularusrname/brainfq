@@ -1,11 +1,17 @@
 ﻿using System.Text.RegularExpressions;
 
-const string IMPROPER_USAGE_MESSAGE = "No arguments. Usage example:\nbrainfq <file[.b or .bf]>";
-const int BUFFER_LENGTH = 30_000;
+const int ERR_CODE = 1;
+const int SUCCESS_CODE = 0;
+const int ERR_USAGE_CODE = 64;
+
+const short BUFFER_LENGTH = 30_000;
+const string IMPROPER_USAGE_MESSAGE = "No proper arguments. Usage example:\nbrainfq <file[.b or .bf]>";
+
+
 if (args.Length == 0 || args.Length > 1)
 {
     Console.WriteLine(IMPROPER_USAGE_MESSAGE);
-    return 1;
+    return ERR_USAGE_CODE;
 }
 
 string fileArg = args[0];
@@ -13,10 +19,10 @@ string fileArg = args[0];
 if (!FileExtensionRegex().IsMatch(fileArg))
 {
     Console.WriteLine(IMPROPER_USAGE_MESSAGE);
+    return ERR_USAGE_CODE;
 }
 
-//TODO: Solve problem with .Span (it just copied memory when is callig):
-Memory<byte> brainfqBuffer = new byte[BUFFER_LENGTH];
+byte[] brainfqBuffer = new byte[BUFFER_LENGTH];
 
 try
 {
@@ -32,8 +38,8 @@ try
         //Console.WriteLine($"{fileArg}:\n{fileContent}");
     #endif
 
-    ushort dataPointer = 0;
-    short brackets = 0;
+    int dataPointer = 0;
+    int brackets = 0;
     for (ushort index = 0; index < workContent.Length; ++index)
     {
         switch (workContent[index])
@@ -53,15 +59,15 @@ try
                 break;
 
             case '+':
-                ++brainfqBuffer.Span[dataPointer];
+                ++brainfqBuffer[dataPointer];
                 break;
 
             case '-':
-                --brainfqBuffer.Span[dataPointer];
+                --brainfqBuffer[dataPointer];
                 break;
 
             case '.':
-                Console.Write((char)brainfqBuffer.Span[dataPointer]);
+                Console.Write((char)brainfqBuffer[dataPointer]);
                 break;
 
             case ',':
@@ -71,14 +77,14 @@ try
                     Console.WriteLine("\nAn error occurred while reading the input value");
                     break;
                 }
-                brainfqBuffer.Span[dataPointer] = (byte)input;
+                brainfqBuffer[dataPointer] = (byte)input;
                 break;
 
             case '[':
-                brackets++;
+                ++brackets;
                 // if current byte at the data pointer is NOT zero,
                 // then move the instruction pointer forward to the next command
-                if (brainfqBuffer.Span[dataPointer] != 0)
+                if (brainfqBuffer[dataPointer] != 0)
                 {
                     continue;
                 }
@@ -104,7 +110,7 @@ try
                 --brackets;
                 // If the byte at the data pointer is zero,
                 // then move the instruction pointer forward to the next command
-                if (brainfqBuffer.Span[dataPointer] == 0)
+                if (brainfqBuffer[dataPointer] == 0)
                 {
                     continue;
                 }
@@ -128,7 +134,7 @@ try
         }
     }
 
-    return 0;
+    return SUCCESS_CODE;
 }
 catch (Exception e)
 {
@@ -138,7 +144,7 @@ catch (Exception e)
         Console.WriteLine(e.Message);
     #endif
 
-    return 1;
+    return ERR_CODE;
 }
 
 internal partial class Program
