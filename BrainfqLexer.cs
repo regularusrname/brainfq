@@ -1,4 +1,5 @@
 using System.Text;
+using Brainfq.Exceptions;
 
 internal static class BrainfqLexer
 {
@@ -10,7 +11,7 @@ internal static class BrainfqLexer
 
         if (rawTextLength <= 0 || rawText is null)
         {
-            throw new InvalidOperationException("Empty file: cannot parse");
+            throw new LexAnalyzerOperationException("Empty file: cannot parse");
         }
 
         var strBuilder = new StringBuilder();
