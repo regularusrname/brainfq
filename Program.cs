@@ -26,23 +26,19 @@ byte[] brainfqBuffer = new byte[BUFFER_LENGTH];
 
 try
 {
-    string workContent;
-    using (StreamReader fileContentReader = new(fileArg))
-    {
-        string fileContent = await fileContentReader.ReadToEndAsync();
-        workContent = await BrainfqLexer.LexAnalyzeAsync(fileContent);
-    }
+    string fileContent = await File.ReadAllTextAsync(fileArg);
+    string source = await BrainfqLexer.LexAnalyzeAsync(fileContent);
 
     #if DEBUG
-        Console.WriteLine(workContent);
+        Console.WriteLine(source);
         //Console.WriteLine($"{fileArg}:\n{fileContent}");
     #endif
 
     int dataPointer = 0;
     int brackets = 0;
-    for (ushort index = 0; index < workContent.Length; ++index)
+    for (ushort index = 0; index < source.Length; ++index)
     {
-        switch (workContent[index])
+        switch (source[index])
         {
             case '>':
                 if (dataPointer >= BUFFER_LENGTH)
@@ -94,7 +90,7 @@ try
                 while (brackets > 0)
                 {
                     ++index;
-                    switch (workContent[index])
+                    switch (source[index])
                     {
                         case '[':
                             ++brackets;
@@ -120,7 +116,7 @@ try
                 while (brackets != 1)
                 {
                     --index;
-                    switch (workContent[index])
+                    switch (source[index])
                     {
                         case ']':
                             --brackets;
