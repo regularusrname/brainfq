@@ -1,12 +1,14 @@
 ﻿using System.Text.RegularExpressions;
+using Brainfq.Exceptions;
 
 const int ERR_CODE = 1;
 const int SUCCESS_CODE = 0;
 const int ERR_USAGE_CODE = 64;
 
 const short BUFFER_LENGTH = 30_000;
-const string IMPROPER_USAGE_MESSAGE = "No proper arguments. Usage example:\nbrainfq <file[.b or .bf]>";
-
+const short LAST_BYTE_INDEX = BUFFER_LENGTH - 1;
+const string IMPROPER_USAGE_MESSAGE =
+    "No proper arguments. Usage example:\nbrainfq <file[.b or .bf]>";
 
 if (args.Length == 0 || args.Length > 1)
 {
@@ -28,6 +30,9 @@ try
 {
     string fileContent = await File.ReadAllTextAsync(fileArg);
     string source = await BrainfqLexer.LexAnalyzeAsync(fileContent);
+    
+    // close ']' position - start '[' position
+    Dictionary<int, int> loopMap = await BrainfqParser.ParseLoopAsync(source);
 
     #if DEBUG
         Console.WriteLine(source);
@@ -35,23 +40,23 @@ try
     #endif
 
     int dataPointer = 0;
-    int brackets = 0;
-    for (ushort index = 0; index < source.Length; ++index)
+    int nestingLevels = 0;
+    for (int index = 0; index < source.Length; ++index)
     {
         switch (source[index])
         {
             case '>':
-                if (dataPointer >= BUFFER_LENGTH)
-                    dataPointer = 0;
-                else
-                    ++dataPointer;
+                dataPointer =
+                    dataPointer == LAST_BYTE_INDEX
+                        ? 0                 //then: back to first byte of buffer
+                        : dataPointer + 1;  //or: go to next byte of buffer
                 break;
 
             case '<':
-                if (dataPointer <= 0)
-                    dataPointer = BUFFER_LENGTH - 1;
-                else
-                    --dataPointer;
+                dataPointer =
+                    dataPointer == 0
+                        ? LAST_BYTE_INDEX   //then: go to last byte of buffer
+                        : dataPointer - 1;  //or: go to previous byte of buffer
                 break;
 
             case '+':
@@ -77,7 +82,7 @@ try
                 break;
 
             case '[':
-                ++brackets;
+                ++nestingLevels;
                 // if current byte at the data pointer is NOT zero,
                 // then move the instruction pointer forward to the next command
                 if (brainfqBuffer[dataPointer] != 0)
@@ -87,23 +92,11 @@ try
 
                 //If the byte at the data pointer IS ZERO,
                 //then jump it forward to the command after the matching ] command
-                while (brackets > 0)
-                {
-                    ++index;
-                    switch (source[index])
-                    {
-                        case '[':
-                            ++brackets;
-                            break;
-                        case ']':
-                            --brackets;
-                            break;
-                    }
-                }
+                index = loopMap[index];
                 break;
 
             case ']':
-                --brackets;
+                --nestingLevels;
                 // If the byte at the data pointer is zero,
                 // then move the instruction pointer forward to the next command
                 if (brainfqBuffer[dataPointer] == 0)
@@ -113,35 +106,37 @@ try
 
                 // If the byte at the data pointer IS NONzero,
                 // then jump it back to the command after the matching [ command.
-                while (brackets != 1)
-                {
-                    --index;
-                    switch (source[index])
-                    {
-                        case ']':
-                            --brackets;
-                            break;
-                        case '[':
-                            ++brackets;
-                            break;
-                    }
-                }
+                index = loopMap[index];
                 break;
         }
     }
 
     return SUCCESS_CODE;
 }
-catch (Exception e)
+catch (LexAnalyzerOperationException lexException)
 {
-    Console.WriteLine("An error occurred during execution.");
-
-    #if DEBUG
-        Console.WriteLine(e.Message);
-    #endif
-
+    Console.WriteLine(lexException.Message);
     return ERR_CODE;
 }
+catch (ParseSyntaxException syntaxException)
+{
+    Console.WriteLine(syntaxException.Message);
+    return ERR_CODE;
+}
+
+#if DEBUG
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+        return ERR_CODE;
+    }
+#else
+    catch (Exception)
+    {
+        Console.WriteLine("An error occurred during execution.");
+        return ERR_CODE;
+    }
+#endif
 
 internal partial class Program
 {
