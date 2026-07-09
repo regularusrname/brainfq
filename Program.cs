@@ -5,8 +5,9 @@ const int ERR_CODE = 1;
 const int SUCCESS_CODE = 0;
 const int ERR_USAGE_CODE = 64;
 
-const short BUFFER_LENGTH = 30_000;
-const short LAST_BYTE_INDEX = BUFFER_LENGTH - 1;
+const int BUFFER_LENGTH = 30_000;
+const int LAST_BYTE_INDEX = BUFFER_LENGTH - 1;
+
 const string IMPROPER_USAGE_MESSAGE =
     "No proper arguments. Usage example:\nbrainfq <file[.b or .bf]>";
 
@@ -29,10 +30,10 @@ byte[] brainfqBuffer = new byte[BUFFER_LENGTH];
 try
 {
     string fileContent = await File.ReadAllTextAsync(fileArg);
-    string source = await BrainfqLexer.LexAnalyzeAsync(fileContent);
+    string source = BrainfqLexer.ExtractInstructions(fileContent);
     
     // close ']' position - start '[' position
-    Dictionary<int, int> loopMap = await BrainfqParser.ParseLoopAsync(source);
+    Dictionary<int, int> bracketsMap = BrainfqParser.ParseLoop(source);
 
     #if DEBUG
         Console.WriteLine(source);
@@ -40,7 +41,6 @@ try
     #endif
 
     int dataPointer = 0;
-    int nestingLevels = 0;
     for (int index = 0; index < source.Length; ++index)
     {
         switch (source[index])
@@ -82,7 +82,6 @@ try
                 break;
 
             case '[':
-                ++nestingLevels;
                 // if current byte at the data pointer is NOT zero,
                 // then move the instruction pointer forward to the next command
                 if (brainfqBuffer[dataPointer] != 0)
@@ -92,11 +91,10 @@ try
 
                 //If the byte at the data pointer IS ZERO,
                 //then jump it forward to the command after the matching ] command
-                index = loopMap[index];
+                index = bracketsMap[index];
                 break;
 
             case ']':
-                --nestingLevels;
                 // If the byte at the data pointer is zero,
                 // then move the instruction pointer forward to the next command
                 if (brainfqBuffer[dataPointer] == 0)
@@ -106,7 +104,7 @@ try
 
                 // If the byte at the data pointer IS NONzero,
                 // then jump it back to the command after the matching [ command.
-                index = loopMap[index];
+                index = bracketsMap[index];
                 break;
         }
     }
@@ -140,6 +138,6 @@ catch (ParseSyntaxException syntaxException)
 
 internal partial class Program
 {
-    [GeneratedRegex("\\.(b|bf)$")]
+    [GeneratedRegex(@"\.(b|bf)$")]
     private static partial Regex FileExtensionRegex();
 }

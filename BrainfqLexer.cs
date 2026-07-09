@@ -5,16 +5,16 @@ internal static class BrainfqLexer
 {
     private static readonly HashSet<char> _lexPool = [ '.', ',', '<', '>', '+', '-', '[', ']' ];
 
-    internal static async Task<string> LexAnalyzeAsync(string rawText)
+    internal static string ExtractInstructions(string rawText)
     {
         var rawTextLength = rawText.Length;
 
-        if (rawTextLength <= 0 || rawText is null)
+        if (rawText is null)
         {
-            throw new LexAnalyzerOperationException("Empty file: cannot parse");
+            throw new LexAnalyzerOperationException("Cannot perform reading of this file");
         }
 
-        var strBuilder = new StringBuilder();
+        var strBuilder = new StringBuilder(rawTextLength);
 
         for (int i = 0; i < rawTextLength; ++i)
         {

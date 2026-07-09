@@ -2,11 +2,11 @@ using Brainfq.Exceptions;
 
 internal static class BrainfqParser
 {
-    internal static async Task<Dictionary<int, int>> ParseLoopAsync(string source)
+    internal static Dictionary<int, int> ParseLoop(string source)
     {
         Dictionary<int, int> loopMap = [];
 
-        Stack<int> levels = [];
+        Stack<int> loopStarts = [];
         for (int i = 0; i < source.Length; ++i)
         {
             if (source[i] != '[' && source[i] != ']')
@@ -16,7 +16,7 @@ internal static class BrainfqParser
 
             if (source[i] == ']')
             {
-                if (levels.Count == 0)
+                if (loopStarts.Count == 0)
                 {
                     // TODO: make positionMap of charecters in source code and lexAnalyzed code
                     // like: in source code - unexpected token in position 10:2 (character position:line)
@@ -26,7 +26,7 @@ internal static class BrainfqParser
                     throw new ParseSyntaxException("Unexpected token ']' in source code"); 
                 }
 
-                int startPosition = levels.Pop();
+                int startPosition = loopStarts.Pop();
                 
                 // close ']' position - start '[' position
                 loopMap.Add(i, startPosition);
@@ -37,12 +37,12 @@ internal static class BrainfqParser
                 continue;
             }
             
-            levels.Push(i);
+            loopStarts.Push(i);
         }
 
-        if (levels.Count > 0)
+        if (loopStarts.Count > 0)
         {
-            throw new ParseSyntaxException($"Expected {levels.Count} of ']' tokens in source code");
+            throw new ParseSyntaxException($"Expected {loopStarts.Count} of ']' tokens in source code");
         }
 
         return loopMap;
